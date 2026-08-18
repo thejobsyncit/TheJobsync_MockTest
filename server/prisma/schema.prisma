@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model College {
+  id              Int         @id @default(autoincrement())
+  college_id      String      @unique
+  college_name    String
+  college_code    String?
+  location        String?
+  contact_person  String?
+  contact_email   String?
+  contact_phone   String?
+  status          String      @default("ACTIVE")
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+
+  candidates      Candidate[]
+  assessments     Assessment[]
+}
+
+model Candidate {
+  id                  Int         @id @default(autoincrement())
+  candidate_id        String      @unique
+  college_id          String
+  college             College     @relation(fields: [college_id], references: [college_id])
+  full_name           String
+  email               String
+  normalized_email    String      @unique
+  phone               String
+  normalized_phone    String      @unique
+  department          String
+  position            String
+  degree              String?
+  created_at          DateTime    @default(now())
+  last_login          DateTime?
+  verification_status String      @default("PENDING")
+
+  assessment          Assessment?
+}
+
+model Assessment {
+  assessment_id    Int       @id @default(autoincrement())
+  candidate_id     String    @unique
+  candidate        Candidate @relation(fields: [candidate_id], references: [candidate_id])
+  college_id       String
+  college          College   @relation(fields: [college_id], references: [college_id])
+  department       String
+  position         String
+  start_time       DateTime?
+  end_time         DateTime?
+  duration         Int?
+  total_questions  Int       @default(30)
+  correct_answers  Int       @default(0)
+  wrong_answers    Int       @default(0)
+  unanswered       Int       @default(30)
+  score            Int       @default(0)
+  aptitude_score   Int       @default(0)
+  grammar_score    Int       @default(0)
+  coding_score     Int       @default(0)
+  percentage       Float     @default(0)
+  status           String    @default("NOT_STARTED")
+  completed_at     DateTime?
+  candidate_rating Int?
+  candidate_feedback String?
+
+  answers          CandidateAnswer[]
+}
+
+model Question {
+  question_id    Int      @id @default(autoincrement())
+  department     String
+  position       String
+  category       String
+  difficulty     String
+  type           String   @default("MCQ")
+  question_text  String
+  option_a       String?
+  option_b       String?
+  option_c       String?
+  option_d       String?
+  correct_answer String?
+  explanation    String?
+  status         String   @default("ACTIVE")
+  answers        CandidateAnswer[]
+}
+
+model CandidateAnswer {
+  answer_id        Int        @id @default(autoincrement())
+  assessment_id    Int
+  assessment       Assessment @relation(fields: [assessment_id], references: [assessment_id])
+  question_id      Int
+  question         Question @relation(fields: [question_id], references: [question_id])
+  shuffled_options String?
+  selected_answer  String?
+  correct_answer   String?
+  is_correct       Boolean    @default(false)
+  answered_at      DateTime   @default(now())
+
+  @@unique([assessment_id, question_id])
+}
