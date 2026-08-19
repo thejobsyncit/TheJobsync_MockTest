@@ -4,7 +4,7 @@ import axios from 'axios';
 import { ArrowLeft, Users, FileText, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import styles from './Admin.module.css';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function CollegeDetails() {
   const { collegeId } = useParams();

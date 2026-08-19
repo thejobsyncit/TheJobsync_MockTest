@@ -3,7 +3,7 @@ import axios from 'axios';
 import styles from './Admin.module.css';
 import { Search, Download, Users, CheckCircle, Clock, X, Trash2 } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function GlobalCandidates() {
   const [candidates, setCandidates] = useState<any[]>([]);

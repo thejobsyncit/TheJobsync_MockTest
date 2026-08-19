@@ -4,7 +4,7 @@ import styles from './AdminDashboard.module.css';
 import { Search, Download, Users, CheckCircle, Clock, X, Trash2 } from 'lucide-react';
 import logo from '../assets/logo_new.jpg';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function AdminDashboard() {
   const [candidates, setCandidates] = useState<any[]>([]);

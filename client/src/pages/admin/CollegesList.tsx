@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Plus, Search, Building2, UserCircle, FileText, CheckCircle, Clock, Trash2, Edit2 } from 'lucide-react';
 import styles from './Admin.module.css';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function CollegesList() {
   const [colleges, setColleges] = useState<any[]>([]);

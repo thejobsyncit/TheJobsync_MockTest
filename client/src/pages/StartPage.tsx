@@ -5,7 +5,7 @@ import styles from './StartPage.module.css';
 import { IT_DEPARTMENTS, NON_IT_DEPARTMENTS, IT_ROLES, NON_IT_ROLES, DEGREES } from '../data';
 import logo from '../assets/logo_new.jpg';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function StartPage() {
   const [formData, setFormData] = useState({

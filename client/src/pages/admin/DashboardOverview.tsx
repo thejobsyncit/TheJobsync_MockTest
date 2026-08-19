@@ -4,7 +4,7 @@ import { Building2, Users, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import styles from './Admin.module.css';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function DashboardOverview() {
   const [colleges, setColleges] = useState<any[]>([]);
