@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Plus, Search, Building2, UserCircle, FileText, CheckCircle, Clock, Trash2, Edit2 } from 'lucide-react';

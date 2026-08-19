@@ -1,8 +1,8 @@
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, type FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styles from './StartPage.module.css';
-import { IT_DEPARTMENTS, NON_IT_DEPARTMENTS, GENERAL_DEPARTMENTS, IT_ROLES, NON_IT_ROLES, GENERAL_ROLES, DEGREES } from '../data';
+import { IT_DEPARTMENTS, NON_IT_DEPARTMENTS, IT_ROLES, NON_IT_ROLES, DEGREES } from '../data';
 import logo from '../assets/logo_new.jpg';
 
 const API_URL = 'http://localhost:5000/api';
@@ -20,7 +20,7 @@ export default function StartPage() {
   
   const [colleges, setColleges] = useState<any[]>([]);
   
-  const ALL_POSITIONS = [...IT_ROLES, ...NON_IT_ROLES];
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();

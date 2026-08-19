@@ -276,7 +276,7 @@ export default function TestInterface() {
 
                   const isCurrent = idx === currentIdx;
                   const isAnswered = !!q.selected_answer;
-                  const isMarked = markedForReview.has(idx);
+                  // const isMarked = markedForReview.has(idx);
                   
                   let classes = styles.gridBtn;
                   if (isCurrent) classes += ` ${styles.gridBtn_current}`;
