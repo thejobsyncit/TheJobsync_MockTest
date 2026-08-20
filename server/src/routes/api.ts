@@ -7,29 +7,43 @@ import { GoogleGenAI } from '@google/genai';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Helper to generate Candidate ID
-const generateCandidateId = async () => {
-  const count = await prisma.candidate.count();
-  return `JS-TEST-${String(count + 1).padStart(5, '0')}`;
-};
+let questionCache: Record<string, any[]> = {};
+let cacheTime = 0;
 
-// Helper to fetch section questions with 3 Easy, 4 Medium, 3 Hard distribution
+// Helper to fetch section questions with 3 Easy, 4 Medium, 3 Hard distribution (Optimized for High Concurrency)
 const fetchSectionQuestions = async (position: string, category: string): Promise<any[]> => {
-  const easy = await prisma.$queryRaw<any[]>`SELECT * FROM "Question" WHERE position = ${position} AND category = ${category} AND difficulty = 'Easy' AND status = 'ACTIVE' ORDER BY RANDOM() LIMIT 3`;
-  const medium = await prisma.$queryRaw<any[]>`SELECT * FROM "Question" WHERE position = ${position} AND category = ${category} AND difficulty = 'Medium' AND status = 'ACTIVE' ORDER BY RANDOM() LIMIT 4`;
-  const hard = await prisma.$queryRaw<any[]>`SELECT * FROM "Question" WHERE position = ${position} AND category = ${category} AND difficulty = 'Hard' AND status = 'ACTIVE' ORDER BY RANDOM() LIMIT 3`;
+  // Cache questions for 5 minutes to prevent DB overload when 500+ users login simultaneously
+  if (Date.now() - cacheTime > 300000) {
+     questionCache = {};
+     cacheTime = Date.now();
+  }
+  
+  const cacheKey = `${position}_${category}`;
+  let allQuestions = questionCache[cacheKey];
+  
+  if (!allQuestions) {
+    allQuestions = await prisma.question.findMany({
+      where: { position, category, status: 'ACTIVE' }
+    });
+    questionCache[cacheKey] = allQuestions;
+  }
+
+  const easy = allQuestions.filter(q => q.difficulty === 'Easy').sort(() => Math.random() - 0.5).slice(0, 3);
+  const medium = allQuestions.filter(q => q.difficulty === 'Medium').sort(() => Math.random() - 0.5).slice(0, 4);
+  const hard = allQuestions.filter(q => q.difficulty === 'Hard').sort(() => Math.random() - 0.5).slice(0, 3);
 
   let selected = [...easy, ...medium, ...hard];
   
   if (selected.length < 10) {
-    const selectedIds = selected.map(q => q.question_id);
+    const selectedIds = new Set(selected.map(q => q.question_id));
     const gap = 10 - selected.length;
     
     // Fallback: fetch remaining questions to fill gap
-    const remaining = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT * FROM "Question" WHERE position = $1 AND category = $2 AND status = 'ACTIVE' ${selectedIds.length > 0 ? `AND question_id NOT IN (${selectedIds.join(',')})` : ''} ORDER BY RANDOM() LIMIT $3`,
-      position, category, gap
-    );
+    const remaining = allQuestions
+      .filter(q => !selectedIds.has(q.question_id))
+      .sort(() => Math.random() - 0.5)
+      .slice(0, gap);
+      
     selected = [...selected, ...remaining];
   }
   return selected;
@@ -251,23 +265,32 @@ router.post('/candidates/register', async (req: Request, res: Response) => {
         error: 'TEST ALREADY COMPLETED', 
         message: 'You have already attempted this test. Only one attempt is allowed per email address and phone number.' 
       });
-    } else {
-      candidate = await prisma.candidate.create({
-        data: {
-          candidate_id: await generateCandidateId(),
-          full_name,
-          email,
-          normalized_email,
-          phone,
-          normalized_phone,
-          department,
-          position,
-          degree,
-          college_id
-        },
+    }
+
+    // Concurrency safe candidate creation
+    const tempId = `TEMP-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    candidate = await prisma.candidate.create({
+      data: {
+        candidate_id: tempId,
+        full_name,
+        email,
+        normalized_email,
+        phone,
+        normalized_phone,
+        department,
+        position,
+        degree,
+        college_id
+      },
+      include: { assessment: true }
+    });
+      // Update to correct sequential ID safely
+      const newCandidateId = `JS-TEST-${String(candidate.id).padStart(5, '0')}`;
+      candidate = await prisma.candidate.update({
+        where: { id: candidate.id },
+        data: { candidate_id: newCandidateId },
         include: { assessment: true }
       });
-    }
 
     if (!candidate.assessment) {
       let allQuestions: any[] = [];
