@@ -64,7 +64,7 @@ export default function CollegesList() {
       fetchColleges();
     } catch (err) {
       console.error(err);
-      alert('Failed to create college');
+      alert(`Failed to create college: ${err.response?.data?.error || err.message}`);
     }
   };
 
