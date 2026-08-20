@@ -80,6 +80,20 @@ router.post('/colleges', async (req: Request, res: Response) => {
   }
 });
 
+// Get Simple Colleges List (For Dropdown, no heavy joins)
+router.get('/colleges/simple', async (req: Request, res: Response) => {
+  try {
+    const colleges = await prisma.college.findMany({
+      select: { college_id: true, college_name: true },
+      orderBy: { college_name: 'asc' }
+    });
+    res.json(colleges);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get All Colleges with Statistics
 router.get('/colleges', async (req: Request, res: Response) => {
   try {

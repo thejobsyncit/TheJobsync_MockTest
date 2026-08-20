@@ -28,7 +28,7 @@ export default function StartPage() {
   useEffect(() => {
     const fetchColleges = async () => {
       try {
-        const response = await axios.get(`${API_URL}/colleges`);
+        const response = await axios.get(`${API_URL}/colleges/simple`);
         setColleges(response.data);
       } catch (err) {
         console.error('Failed to fetch colleges:', err);
