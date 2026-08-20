@@ -31,20 +31,8 @@ const fetchPositionQuestions = async (position: string): Promise<any[]> => {
     filtered = [...filtered, ...easy];
   }
 
-  // If STILL short of 30, fallback to other questions (generic)
-  if (filtered.length < 30) {
-    const genericQuestions = globalQuestionCache.filter(q => q.position !== position);
-    const fallbackMedHard = genericQuestions.filter(q => q.difficulty === 'Medium' || q.difficulty === 'Hard');
-    const fallbackEasy = genericQuestions.filter(q => q.difficulty === 'Easy');
-    
-    let fallbackSelected = [...fallbackMedHard, ...fallbackEasy];
-    // Shuffle the fallback questions
-    fallbackSelected = fallbackSelected.sort(() => Math.random() - 0.5);
-    
-    filtered = [...filtered, ...fallbackSelected];
-  }
-
-  // Randomize the final pool for THIS specific student so it's not the same for everyone
+  // Select exactly 30 questions (will be less if DB doesn't have 30 for this specific position)
+  // We completely removed the generic fallback to ensure strict position matching.
   const shuffled = filtered.sort(() => Math.random() - 0.5);
   
   // Select exactly 30 questions
