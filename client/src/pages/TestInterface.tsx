@@ -11,7 +11,7 @@ export default function TestInterface() {
   const navigate = useNavigate();
   const [assessment, setAssessment] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
-  const [timeRemaining, setTimeRemaining] = useState<number>(1800);
+  const [timeRemaining, setTimeRemaining] = useState<number>(1500);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -241,9 +241,11 @@ export default function TestInterface() {
       className={styles.container}
       onCopy={e => e.preventDefault()} 
       onPaste={e => e.preventDefault()} 
+      onCut={e => e.preventDefault()}
+      onDragStart={e => e.preventDefault()}
       onContextMenu={e => e.preventDefault()}
       onSelect={e => e.preventDefault()}
-      style={{ userSelect: 'none' }}
+      style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
     >
       {/* Sidebar Nav */}
       <aside className={styles.sidebar}>

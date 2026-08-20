@@ -7,46 +7,48 @@ import { GoogleGenAI } from '@google/genai';
 const router = Router();
 const prisma = new PrismaClient();
 
-let questionCache: Record<string, any[]> = {};
-let cacheTime = 0;
+let globalQuestionCache: any[] = [];
+let globalCacheTime = 0;
 
-// Helper to fetch section questions with 3 Easy, 4 Medium, 3 Hard distribution (Optimized for High Concurrency)
-const fetchSectionQuestions = async (position: string, category: string): Promise<any[]> => {
-  // Cache questions for 5 minutes to prevent DB overload when 500+ users login simultaneously
-  if (Date.now() - cacheTime > 300000) {
-     questionCache = {};
-     cacheTime = Date.now();
-  }
-  
-  const cacheKey = `${position}_${category}`;
-  let allQuestions = questionCache[cacheKey];
-  
-  if (!allQuestions) {
-    allQuestions = await prisma.question.findMany({
-      where: { position, category, status: 'ACTIVE' }
-    });
-    questionCache[cacheKey] = allQuestions;
+// Fetch 30 unique, position-specific MCQ questions (Medium/Hard preferred) with memory caching for concurrency
+const fetchPositionQuestions = async (position: string): Promise<any[]> => {
+  if (Date.now() - globalCacheTime > 300000 || globalQuestionCache.length === 0) {
+     globalQuestionCache = await prisma.question.findMany({
+       where: { status: 'ACTIVE', type: 'MCQ' }
+     });
+     globalCacheTime = Date.now();
   }
 
-  const easy = allQuestions.filter(q => q.difficulty === 'Easy').sort(() => Math.random() - 0.5).slice(0, 3);
-  const medium = allQuestions.filter(q => q.difficulty === 'Medium').sort(() => Math.random() - 0.5).slice(0, 4);
-  const hard = allQuestions.filter(q => q.difficulty === 'Hard').sort(() => Math.random() - 0.5).slice(0, 3);
-
-  let selected = [...easy, ...medium, ...hard];
+  // Filter for exact position requested
+  const positionQuestions = globalQuestionCache.filter(q => q.position === position);
   
-  if (selected.length < 10) {
-    const selectedIds = new Set(selected.map(q => q.question_id));
-    const gap = 10 - selected.length;
+  // Prefer Medium and Hard questions
+  let filtered = positionQuestions.filter(q => q.difficulty === 'Medium' || q.difficulty === 'Hard');
+
+  // Fallback to Easy questions if we don't have 30 Medium/Hard questions for this position
+  if (filtered.length < 30) {
+    const easy = positionQuestions.filter(q => q.difficulty === 'Easy');
+    filtered = [...filtered, ...easy];
+  }
+
+  // If STILL short of 30, fallback to other questions (generic)
+  if (filtered.length < 30) {
+    const genericQuestions = globalQuestionCache.filter(q => q.position !== position);
+    const fallbackMedHard = genericQuestions.filter(q => q.difficulty === 'Medium' || q.difficulty === 'Hard');
+    const fallbackEasy = genericQuestions.filter(q => q.difficulty === 'Easy');
     
-    // Fallback: fetch remaining questions to fill gap
-    const remaining = allQuestions
-      .filter(q => !selectedIds.has(q.question_id))
-      .sort(() => Math.random() - 0.5)
-      .slice(0, gap);
-      
-    selected = [...selected, ...remaining];
+    let fallbackSelected = [...fallbackMedHard, ...fallbackEasy];
+    // Shuffle the fallback questions
+    fallbackSelected = fallbackSelected.sort(() => Math.random() - 0.5);
+    
+    filtered = [...filtered, ...fallbackSelected];
   }
-  return selected;
+
+  // Randomize the final pool for THIS specific student so it's not the same for everyone
+  const shuffled = filtered.sort(() => Math.random() - 0.5);
+  
+  // Return exactly 30 questions
+  return shuffled.slice(0, 30);
 };
 
 // ===============================
@@ -307,26 +309,7 @@ router.post('/candidates/register', async (req: Request, res: Response) => {
       });
 
     if (!candidate.assessment) {
-      let allQuestions: any[] = [];
-      const isIT = IT_ROLES.includes(position);
-      const isGeneral = GENERAL_ROLES.includes(position);
-      
-      if (isIT) {
-        const aptitude = await fetchSectionQuestions(position, 'Aptitude');
-        const grammar = await fetchSectionQuestions(position, 'Grammar & Reasoning');
-        const technical = await fetchSectionQuestions(position, 'Coding & Technical');
-        allQuestions = [...aptitude, ...grammar, ...technical];
-      } else if (isGeneral) {
-        const aptitude = await fetchSectionQuestions(position, 'Aptitude');
-        const grammar = await fetchSectionQuestions(position, 'Grammar');
-        const general = await fetchSectionQuestions(position, 'General Knowledge');
-        allQuestions = [...aptitude, ...grammar, ...general];
-      } else {
-        const aptitude = await fetchSectionQuestions(position, 'Aptitude');
-        const grammar = await fetchSectionQuestions(position, 'Grammar');
-        const workplace = await fetchSectionQuestions(position, 'Reasoning & Workplace Ability');
-        allQuestions = [...aptitude, ...grammar, ...workplace];
-      }
+      let allQuestions = await fetchPositionQuestions(position);
       if (allQuestions.length === 0) {
         return res.status(400).json({ error: 'No questions available for this role.' });
       }
@@ -399,10 +382,10 @@ router.get('/assessments/:candidateId', async (req: Request, res: Response) => {
 
   if (!assessment) return res.status(404).json({ error: 'Assessment not found' });
 
-  let timeRemaining = 30 * 60;
+  let timeRemaining = 25 * 60;
   if (assessment.start_time && assessment.status === 'IN_PROGRESS') {
     const elapsed = Math.floor((Date.now() - assessment.start_time.getTime()) / 1000);
-    timeRemaining = Math.max(0, 30 * 60 - elapsed);
+    timeRemaining = Math.max(0, 25 * 60 - elapsed);
   }
 
   const safeAnswers = assessment.answers.map(a => {
