@@ -47,8 +47,15 @@ const fetchPositionQuestions = async (position: string): Promise<any[]> => {
   // Randomize the final pool for THIS specific student so it's not the same for everyone
   const shuffled = filtered.sort(() => Math.random() - 0.5);
   
-  // Return exactly 30 questions
-  return shuffled.slice(0, 30);
+  // Select exactly 30 questions
+  const selected = shuffled.slice(0, 30);
+  
+  // Group them by category so they appear in order in the UI
+  return selected.sort((a, b) => {
+    if (a.category < b.category) return -1;
+    if (a.category > b.category) return 1;
+    return 0;
+  });
 };
 
 // ===============================
