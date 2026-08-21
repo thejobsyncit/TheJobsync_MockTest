@@ -40,6 +40,12 @@ export default function StartPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (formData.phone.replace(/\D/g, '').length !== 10) {
+      setError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -113,9 +119,15 @@ export default function StartPage() {
             <input 
               type="tel" 
               required
+              maxLength={10}
               value={formData.phone}
-              onChange={e => setFormData({...formData, phone: e.target.value})}
-              placeholder="Enter your phone number"
+              onChange={e => {
+                const val = e.target.value.replace(/\D/g, '');
+                if (val.length <= 10) {
+                  setFormData({...formData, phone: val});
+                }
+              }}
+              placeholder="10-digit phone number"
             />
           </div>
 
