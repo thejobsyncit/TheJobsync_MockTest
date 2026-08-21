@@ -22,14 +22,8 @@ const fetchPositionQuestions = async (position: string, department: string): Pro
   // Filter for exact position requested
   const positionQuestions = globalQuestionCache.filter(q => q.position === position);
   
-  // Prefer Medium and Hard questions
-  let filtered = positionQuestions.filter(q => q.difficulty === 'Medium' || q.difficulty === 'Hard');
-
-  // Fallback to Easy questions if we don't have 30 Medium/Hard questions for this position
-  if (filtered.length < 30) {
-    const easy = positionQuestions.filter(q => q.difficulty === 'Easy');
-    filtered = [...filtered, ...easy];
-  }
+  // Strictly require Hard questions
+  let filtered = positionQuestions.filter(q => q.difficulty === 'Hard');
 
   // Dynamic Generation Fallback: If not enough questions, generate them via Gemini
   if (filtered.length < 30) {
@@ -39,10 +33,10 @@ const fetchPositionQuestions = async (position: string, department: string): Pro
      if (process.env.GEMINI_API_KEY) {
        try {
          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-         const prompt = `JOBSYNC – ROLE-BASED HARD MCQ QUESTION GENERATOR
+         const prompt = `JOBSYNC – ROLE-BASED EXTREMELY TOUGH MCQ QUESTION GENERATOR
 
 You are an advanced recruitment assessment question generator for The JobSync.
-Generate exactly ${needed} hard-level multiple-choice questions (MCQs) based strictly on the candidate’s selected Job Position / Role: "${position}" in "${department}" department.
+Generate exactly ${needed} EXTREMELY HARD AND ADVANCED level multiple-choice questions (MCQs) based strictly on the candidate’s selected Job Position / Role: "${position}" in "${department}" department.
 
 1. DISTRIBUTION RULE (STRICTLY 30 QUESTIONS TOTAL)
 Generate EXACTLY 30 questions divided into three strict categories:
@@ -51,21 +45,21 @@ Generate EXACTLY 30 questions divided into three strict categories:
 - Exactly 10 questions for "Coding & Technical" (for IT roles) OR "Core Domain Knowledge" (for Non-IT roles).
 
 2. CORE DOMAIN / TECHNICAL RULE (10 Questions)
-- For IT Developer roles (e.g. Java, Python, React, Full Stack, Android, etc.): You MUST generate 10 medium-to-hard level technical questions. At least 5 of them must contain actual CODE SNIPPETS (predict output, find bug, time complexity, etc.) relevant to the exact language/framework in the role title.
-- For Non-IT roles (e.g. HR, Sales, Finance, Civil): Generate 10 medium-to-hard level domain-specific scenario questions based on their real-world responsibilities. DO NOT ask programming questions for Non-IT.
+- For IT Developer roles (e.g. Java, Python, React, Full Stack, Android, etc.): You MUST generate 10 EXTREMELY HARD technical questions. At least 8 of them must contain complex CODE SNIPPETS (predict output, tricky edge cases, algorithmic complexity, etc.) relevant to the exact language/framework in the role title.
+- For Non-IT roles (e.g. HR, Sales, Finance, Civil): Generate 10 EXTREMELY HARD domain-specific scenario questions based on highly complex real-world responsibilities. DO NOT ask programming questions for Non-IT.
 
 3. APTITUDE & REASONING RULE (10 Questions)
-- Generate 10 medium-to-tough Quantitative Aptitude and Logical Reasoning questions (e.g. time & work, probability, puzzles, data interpretation).
+- Generate 10 VERY TOUGH Quantitative Aptitude and Logical Reasoning questions (e.g. high-level puzzles, complex data interpretation, probability).
 - Where possible, frame the word problems using scenarios related to the candidate's industry (e.g. for a developer: "A team of 5 devs takes 10 days...").
 
 4. GRAMMAR & VERBAL RULE (10 Questions)
-- Generate 10 medium-to-tough English Grammar, Vocabulary, and Verbal Reasoning questions (e.g. error spotting, synonyms, reading comprehension snippets, advanced sentence correction).
+- Generate 10 VERY TOUGH English Grammar, Vocabulary, and Verbal Reasoning questions (e.g. advanced error spotting, complex synonyms/antonyms, high-level reading comprehension snippets).
 
 5. RANDOMIZATION & SHUFFLING
 Every time this prompt is run, generate entirely DIFFERENT questions. DO NOT reuse the same numbers in aptitude or the same code snippets. Ensure options are randomized so the correct answer isn't always the same letter.
 
 6. QUESTION STRUCTURE
-Each question must have: Question text, Option A, Option B, Option C, Option D, Correct Answer, Short Explanation, Difficulty (Medium or Hard), Category (Aptitude, Grammar, or Technical), and Role.
+Each question must have: Question text, Option A, Option B, Option C, Option D, Correct Answer, Short Explanation, Difficulty (Hard), Category (Aptitude, Grammar, or Technical), and Role.
 DO NOT use "All of the above" or "None of the above".
 
 7. OUTPUT FORMAT
