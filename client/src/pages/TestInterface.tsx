@@ -22,6 +22,9 @@ export default function TestInterface() {
     return saved ? parseInt(saved, 10) : 0;
   });
   const [securityLock, setSecurityLock] = useState<string | null>(null);
+  const [step, setStep] = useState<'INSTRUCTIONS' | 'TEST'>('INSTRUCTIONS');
+  const [isScreenShared, setIsScreenShared] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const submittingRef = useRef(submitting);
   useEffect(() => { submittingRef.current = submitting; }, [submitting]);
@@ -50,7 +53,7 @@ export default function TestInterface() {
   }, [candidateId]);
 
   useEffect(() => {
-    if (loading || submitting) return;
+    if (loading || submitting || step === 'INSTRUCTIONS') return;
 
     if (timeRemaining <= 0) {
       autoSubmit();
@@ -62,10 +65,10 @@ export default function TestInterface() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [loading, timeRemaining, submitting]);
+  }, [loading, timeRemaining, submitting, step]);
 
   useEffect(() => {
-    if (loading || submitting) return;
+    if (loading || submitting || step === 'INSTRUCTIONS') return;
 
     const handleViolation = (reason: string) => {
       setWarningCount(prev => {
@@ -107,9 +110,7 @@ export default function TestInterface() {
       }
     };
 
-    const handleBlur = () => {
-      handleViolation('Window Focus Lost / Possible Screen Capture Overlay');
-    };
+    // Removed blur listener as it triggers false positives for browser UI interactions (like clicking 'Hide' on screen share bar)
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
@@ -118,15 +119,13 @@ export default function TestInterface() {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("blur", handleBlur);
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("blur", handleBlur);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [loading, submitting, assessment]);
+  }, [loading, submitting, assessment, step]);
 
   const fetchAssessment = async () => {
     try {
@@ -236,6 +235,88 @@ export default function TestInterface() {
     );
   }
 
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  const handleStartTest = async () => {
+    try {
+      let stream;
+      if (isMobile) {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      } else {
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "monitor" } });
+      }
+      streamRef.current = stream;
+      setIsScreenShared(true);
+      
+      // Auto-submit if they stop sharing
+      stream.getVideoTracks()[0].onended = () => {
+        setSecurityLock(`WARNING: ${isMobile ? 'Camera recording' : 'Screen sharing'} stopped! Your test has been terminated for violating proctoring rules.`);
+        autoSubmit('TERMINATED');
+      };
+
+      try {
+        await document.documentElement.requestFullscreen();
+      } catch (err) {
+        console.warn("Fullscreen request failed");
+      }
+      
+      setStep('TEST');
+    } catch (err) {
+      alert(`You must grant ${isMobile ? 'camera' : 'screen share'} permissions to begin the test.`);
+    }
+  };
+
+  if (step === 'INSTRUCTIONS') {
+    return (
+      <div className={styles.instructionsContainer}>
+        <div className={styles.instructionsCard}>
+          <div className={styles.brandGroup} style={{ justifyContent: 'center', marginBottom: '2rem' }}>
+            <img src={logo} alt="Logo" className={styles.logoImage} />
+            <h1 className={styles.brand}>THE JOBSYNC</h1>
+          </div>
+          <h2 className={styles.instructionsTitle}>Assessment Instructions</h2>
+          
+          <div className={styles.detailsGrid}>
+            <div className={styles.detailBox}>
+              <span className={styles.detailLabel}>Position</span>
+              <span className={styles.detailValue}>{assessment?.position}</span>
+            </div>
+            <div className={styles.detailBox}>
+              <span className={styles.detailLabel}>Duration</span>
+              <span className={styles.detailValue}>25 Minutes</span>
+            </div>
+            <div className={styles.detailBox}>
+              <span className={styles.detailLabel}>Total Questions</span>
+              <span className={styles.detailValue}>30 MCQs</span>
+            </div>
+          </div>
+
+          <div className={styles.rulesSection}>
+            <h3>Test Sections (10 Questions Each)</h3>
+            <ul>
+              {Array.from(new Set(questions.map(q => q.question.category))).map(category => (
+                <li key={category}>{category}</li>
+              ))}
+            </ul>
+
+            <h3 style={{ marginTop: '1.5rem', color: '#e74c3c' }}>⚠️ Strict Proctoring Rules</h3>
+            <ul className={styles.warningList}>
+              <li><strong>{isMobile ? 'Camera Recording' : 'Screen Recording'}:</strong> You must share your {isMobile ? 'front camera' : 'entire screen'} to take this test. Recording will be active.</li>
+              <li><strong>No Tab Switching:</strong> Navigating away from this tab will trigger a warning.</li>
+              <li><strong>Fullscreen Required:</strong> Exiting fullscreen or opening other apps will trigger a warning.</li>
+              <li><strong>Do Not Stop {isMobile ? 'Recording' : 'Sharing'}:</strong> If you {isMobile ? 'revoke camera permissions' : 'click "Stop sharing"'}, your exam will be <strong>instantly terminated</strong>.</li>
+              <li><strong>Auto-Termination:</strong> After 3 warnings, your test will be automatically submitted and terminated.</li>
+            </ul>
+          </div>
+
+          <button className={styles.startBtn} onClick={handleStartTest}>
+            {isMobile ? 'I Agree & Turn On Camera' : 'I Agree & Share Screen'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       className={styles.container}
@@ -303,7 +384,7 @@ export default function TestInterface() {
 
       <div className={styles.main}>
         <div className={styles.topbar}>
-          <div className={`${styles.timer} ${timeRemaining < 300 ? styles.timerWarning : ''}`}>
+          <div className={`${styles.timer} ${timeRemaining <= 60 ? styles.timerDanger : timeRemaining <= 180 ? styles.timerWarning : ''}`}>
             <span className={styles.timerLabel}>Time Remaining</span>
             <span className={styles.timerValue}>{formatTime(timeRemaining)}</span>
           </div>

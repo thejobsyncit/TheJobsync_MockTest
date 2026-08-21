@@ -1,23 +1,17 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
-async function main() {
+import { GoogleGenAI } from '@google/genai';
+import * as dotenv from 'dotenv';
+dotenv.config();
+
+async function run() {
   try {
-    const generatedId = `COL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    console.log("Using ID:", generatedId);
-    const newCollege = await prisma.college.create({
-      data: {
-        college_id: generatedId,
-        college_name: 'Deploy Test',
-        college_code: '9999',
-        location: 'test',
-        contact_person: 'test',
-        contact_email: '',
-        contact_phone: '123'
-      }
+    const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: 'hello',
     });
-    console.log("Success:", newCollege);
-  } catch (err) {
-    console.error("Prisma error:", err);
+    console.log(response.text);
+  } catch(e) {
+    console.error(e);
   }
 }
-main().catch(console.error).finally(() => prisma.$disconnect());
+run();
