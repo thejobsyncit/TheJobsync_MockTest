@@ -2,158 +2,35 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import exceljs from 'exceljs';
-import { GoogleGenAI } from '@google/genai';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-let globalQuestionCache: any[] = [];
-let globalCacheTime = 0;
-
-// Fetch 30 unique, position-specific MCQ questions (Medium/Hard preferred) with memory caching for concurrency
+// Fetch 30 unique, position-specific MCQ questions (Hard preferred)
 const fetchPositionQuestions = async (position: string, department: string): Promise<any[]> => {
-  if (Date.now() - globalCacheTime > 300000 || globalQuestionCache.length === 0) {
-     globalQuestionCache = await prisma.question.findMany({
-       where: { status: 'ACTIVE', type: 'MCQ' }
-     });
-     globalCacheTime = Date.now();
-  }
+  // Direct database query to always get fresh questions (bypassing stale cache issues)
+  const positionQuestions = await prisma.question.findMany({
+    where: { 
+      position: position,
+      status: 'ACTIVE',
+      type: 'MCQ'
+    }
+  });
 
-  // Filter for exact position requested
-  const positionQuestions = globalQuestionCache.filter(q => q.position === position);
-  
   // Strictly require Hard questions
   let filtered = positionQuestions.filter(q => q.difficulty === 'Hard');
 
-  // Dynamic Generation Fallback: If not enough questions, generate them via Gemini
+  // Fallback: If we don't have enough Hard questions, fallback to Medium/Easy to ensure 30 questions
   if (filtered.length < 30) {
-     const needed = 30 - filtered.length;
-     console.log(`Not enough questions for ${position}. Generating ${needed} questions...`);
-     
-     if (process.env.GEMINI_API_KEY) {
-       try {
-         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-         const prompt = `JOBSYNC – ROLE-BASED EXTREMELY TOUGH MCQ QUESTION GENERATOR
-
-You are an advanced recruitment assessment question generator for The JobSync.
-Generate exactly ${needed} EXTREMELY HARD AND ADVANCED level multiple-choice questions (MCQs) based strictly on the candidate’s selected Job Position / Role: "${position}" in "${department}" department.
-
-1. DISTRIBUTION RULE (STRICTLY 30 QUESTIONS TOTAL)
-Generate EXACTLY 30 questions divided into three strict categories:
-- Exactly 10 questions for "Aptitude & Logical Reasoning"
-- Exactly 10 questions for "Grammar & Verbal Ability"
-- Exactly 10 questions for "Coding & Technical" (for IT roles) OR "Core Domain Knowledge" (for Non-IT roles).
-
-2. CORE DOMAIN / TECHNICAL RULE (10 Questions)
-- For IT Developer roles (e.g. Java, Python, React, Full Stack, Android, etc.): You MUST generate 10 EXTREMELY HARD technical questions. At least 8 of them must contain complex CODE SNIPPETS (predict output, tricky edge cases, algorithmic complexity, etc.) relevant to the exact language/framework in the role title.
-- For Non-IT roles (e.g. HR, Sales, Finance, Civil): Generate 10 EXTREMELY HARD domain-specific scenario questions based on highly complex real-world responsibilities. DO NOT ask programming questions for Non-IT.
-
-3. APTITUDE & REASONING RULE (10 Questions)
-- Generate 10 VERY TOUGH Quantitative Aptitude and Logical Reasoning questions (e.g. high-level puzzles, complex data interpretation, probability).
-- Where possible, frame the word problems using scenarios related to the candidate's industry (e.g. for a developer: "A team of 5 devs takes 10 days...").
-
-4. GRAMMAR & VERBAL RULE (10 Questions)
-- Generate 10 VERY TOUGH English Grammar, Vocabulary, and Verbal Reasoning questions (e.g. advanced error spotting, complex synonyms/antonyms, high-level reading comprehension snippets).
-
-5. RANDOMIZATION & SHUFFLING
-Every time this prompt is run, generate entirely DIFFERENT questions. DO NOT reuse the same numbers in aptitude or the same code snippets. Ensure options are randomized so the correct answer isn't always the same letter.
-
-6. QUESTION STRUCTURE
-Each question must have: Question text, Option A, Option B, Option C, Option D, Correct Answer, Short Explanation, Difficulty (Hard), Category (Aptitude, Grammar, or Technical), and Role.
-DO NOT use "All of the above" or "None of the above".
-
-7. OUTPUT FORMAT
-Return ONLY valid JSON.
-Format:
-{
-  "role": "${position}",
-  "test_duration_minutes": 30,
-  "total_questions": ${needed},
-  "questions": [
-    {
-      "question_id": 1,
-      "question": "Question text",
-      "options": {
-        "A": "Option A",
-        "B": "Option B",
-        "C": "Option C",
-        "D": "Option D"
-      },
-      "correct_answer": "B",
-      "explanation": "Short explanation",
-      "category": "Specific Category",
-      "difficulty": "Hard",
-      "role": "${position}",
-      "question_type": "Technical"
-    }
-  ]
-}
-
-Return only the raw JSON, without any markdown formatting.`;
-
-         const response = await ai.models.generateContent({
-           model: 'gemini-3.6-flash',
-           contents: prompt,
-           config: {
-             responseMimeType: "application/json"
-           }
-         });
-         
-         let generatedQuestions = [];
-         try {
-           let text = response.text || "{}";
-           text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-           const parsed = JSON.parse(text);
-           if (parsed.questions && Array.isArray(parsed.questions)) {
-             generatedQuestions = parsed.questions;
-           } else if (Array.isArray(parsed)) {
-             generatedQuestions = parsed;
-           }
-         } catch(e) {
-           console.error("Failed to parse Gemini response", e);
-         }
-
-         if (generatedQuestions.length > 0) {
-           const dataToInsert = generatedQuestions.map((q: any) => ({
-             department: department,
-             position: position,
-             category: q.category || 'General',
-             difficulty: q.difficulty || 'Hard',
-             type: 'MCQ',
-             question_text: q.question || q.question_text,
-             option_a: q.options?.A || q.option_a,
-             option_b: q.options?.B || q.option_b,
-             option_c: q.options?.C || q.option_c,
-             option_d: q.options?.D || q.option_d,
-             correct_answer: q.correct_answer,
-             explanation: q.explanation || '',
-             status: 'ACTIVE'
-           }));
-
-           await prisma.question.createMany({
-             data: dataToInsert
-           });
-
-           // Fetch the newly created questions
-           const created = await prisma.question.findMany({
-              where: { position, status: 'ACTIVE' },
-              orderBy: { question_id: 'desc' },
-              take: needed
-           });
-           
-           globalQuestionCache = [...globalQuestionCache, ...created];
-           filtered = [...filtered, ...created];
-         }
-       } catch (err) {
-         console.error("Error generating questions:", err);
-       }
-     }
+    console.log(`Only ${filtered.length} Hard questions found for ${position}. Adding lower difficulty questions.`);
+    const others = positionQuestions.filter(q => q.difficulty !== 'Hard');
+    filtered = [...filtered, ...others];
   }
 
-  // Select exactly 30 questions (will be less if DB doesn't have 30 for this specific position and AI generation failed)
+  // Shuffle all available questions
   const shuffled = filtered.sort(() => Math.random() - 0.5);
   
-  // Select exactly 30 questions
+  // Select exactly 30 questions (will be less only if DB genuinely lacks questions for this role)
   const selected = shuffled.slice(0, 30);
   
   // Group them by category so they appear in order in the UI
