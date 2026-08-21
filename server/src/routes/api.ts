@@ -834,9 +834,9 @@ router.get('/admin/export', async (req: Request, res: Response) => {
   const worksheet = workbook.addWorksheet('Test Candidates');
 
   worksheet.columns = [
-    { Header: 'ID', Key: 'candidate_id', Width: 15 },
-    { Header: 'College', Key: 'college_name', Width: 20 },
-    { Header: 'Name', Key: 'full_name', Width: 25 },
+    { header: 'ID', key: 'candidate_id', width: 15 },
+    { header: 'College', key: 'college_name', width: 20 },
+    { header: 'Name', key: 'full_name', width: 25 },
     { header: 'Email', key: 'email', width: 25 },
     { header: 'Phone Number', key: 'phone', width: 15 },
     { header: 'Degree', key: 'degree', width: 20 },
