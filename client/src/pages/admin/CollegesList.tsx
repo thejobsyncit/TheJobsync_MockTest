@@ -62,7 +62,7 @@ export default function CollegesList() {
         contact_phone: ''
       });
       fetchColleges();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       alert(`Failed to create college: ${err.response?.data?.error || err.message}`);
     }

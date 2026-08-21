@@ -23,7 +23,6 @@ export default function TestInterface() {
   });
   const [securityLock, setSecurityLock] = useState<string | null>(null);
   const [step, setStep] = useState<'INSTRUCTIONS' | 'TEST'>('INSTRUCTIONS');
-  const [isScreenShared, setIsScreenShared] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
   const submittingRef = useRef(submitting);
@@ -246,7 +245,6 @@ export default function TestInterface() {
         stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "monitor" } });
       }
       streamRef.current = stream;
-      setIsScreenShared(true);
       
       // Auto-submit if they stop sharing
       stream.getVideoTracks()[0].onended = () => {
