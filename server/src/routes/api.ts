@@ -6,40 +6,36 @@ import exceljs from 'exceljs';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Fetch 30 unique, position-specific MCQ questions (Hard preferred)
-const fetchPositionQuestions = async (position: string, department: string): Promise<any[]> => {
-  // Direct database query to always get fresh questions (bypassing stale cache issues)
-  const positionQuestions = await prisma.question.findMany({
+// Fetch 30 unique, position-specific MCQ questions based on assigned set
+const fetchPositionQuestions = async (position: string, department: string, setNumber: number): Promise<any[]> => {
+  const selected = await prisma.question.findMany({
     where: { 
       position: position,
       status: 'ACTIVE',
-      type: 'MCQ'
+      type: 'MCQ',
+      set_number: setNumber
     }
   });
 
-  // Strictly require Hard questions
-  let filtered = positionQuestions.filter(q => q.difficulty === 'Hard');
-
-  // Fallback: If we don't have enough Hard questions, fallback to Medium/Easy to ensure 30 questions
-  if (filtered.length < 30) {
-    console.log(`Only ${filtered.length} Hard questions found for ${position}. Adding lower difficulty questions.`);
-    const others = positionQuestions.filter(q => q.difficulty !== 'Hard');
-    filtered = [...filtered, ...others];
-  }
-
-  // Shuffle all available questions
-  const shuffled = filtered.sort(() => Math.random() - 0.5);
-  
-  // Select exactly 30 questions (will be less only if DB genuinely lacks questions for this role)
-  const selected = shuffled.slice(0, 30);
-  
   // Group them by category so they appear in order in the UI
   return selected.sort((a, b) => {
+    const getOrder = (cat: string) => {
+      if (cat.includes('Aptitude')) return 1;
+      if (cat.includes('Verbal') || cat.includes('Grammar')) return 2;
+      return 3;
+    };
+    
+    const orderA = getOrder(a.category);
+    const orderB = getOrder(b.category);
+    
+    if (orderA !== orderB) return orderA - orderB;
+    // Fallback alphabetical if same primary order
     if (a.category < b.category) return -1;
     if (a.category > b.category) return 1;
     return 0;
   });
 };
+
 
 // ===============================
 // COLLEGE ENDPOINTS
@@ -299,9 +295,14 @@ router.post('/candidates/register', async (req: Request, res: Response) => {
       });
 
     if (!candidate.assessment) {
-      let allQuestions = await fetchPositionQuestions(position, department);
+      const count = await prisma.assessment.count({
+        where: { position }
+      });
+      const setNumber = (count % 4) + 1;
+
+      let allQuestions = await fetchPositionQuestions(position, department, setNumber);
       if (allQuestions.length === 0) {
-        return res.status(400).json({ error: 'No questions available for this role. AI Generation also failed.' });
+        return res.status(400).json({ error: `No questions available for this role in Set ${setNumber}.` });
       }
 
       // Do not globally shuffle the 30 questions, so sections remain sequential (1-10, 11-20, 21-30).
@@ -314,7 +315,8 @@ router.post('/candidates/register', async (req: Request, res: Response) => {
           position,
           total_questions: allQuestions.length,
           status: 'IN_PROGRESS',
-          start_time: new Date()
+          start_time: new Date(),
+          assigned_set: setNumber
         }
       });
 

@@ -69,6 +69,7 @@ model Assessment {
   completed_at     DateTime?
   candidate_rating Int?
   candidate_feedback String?
+  assigned_set     Int       @default(1)
 
   answers          CandidateAnswer[]
 }
@@ -88,6 +89,7 @@ model Question {
   correct_answer String?
   explanation    String?
   status         String   @default("ACTIVE")
+  set_number     Int      @default(1)
   answers        CandidateAnswer[]
 }
 
