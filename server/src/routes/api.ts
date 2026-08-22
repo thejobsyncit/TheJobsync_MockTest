@@ -1,13 +1,23 @@
 // @ts-nocheck
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import exceljs from 'exceljs';
+import { GoogleGenAI } from '@google/genai';
+import prisma from '../db';
 
 const router = Router();
-const prisma = new PrismaClient();
+
+// Cache questions in memory to prevent DB overload during concurrent logins
+const questionsCache = new Map<string, any[]>();
+const CACHE_EXPIRY_MS = 1000 * 60 * 60; // 1 hour
 
 // Fetch 30 unique, position-specific MCQ questions based on assigned set
 const fetchPositionQuestions = async (position: string, department: string, setNumber: number): Promise<any[]> => {
+  const cacheKey = `${position}-${department}-${setNumber}`;
+  
+  if (questionsCache.has(cacheKey)) {
+    return questionsCache.get(cacheKey)!;
+  }
+
   const selected = await prisma.question.findMany({
     where: { 
       position: position,
@@ -18,7 +28,7 @@ const fetchPositionQuestions = async (position: string, department: string, setN
   });
 
   // Group them by category so they appear in order in the UI
-  return selected.sort((a, b) => {
+  const sorted = selected.sort((a, b) => {
     const getOrder = (cat: string) => {
       if (cat.includes('Aptitude')) return 1;
       if (cat.includes('Verbal') || cat.includes('Grammar')) return 2;
@@ -34,6 +44,16 @@ const fetchPositionQuestions = async (position: string, department: string, setN
     if (a.category > b.category) return 1;
     return 0;
   });
+  
+  // Set to cache
+  questionsCache.set(cacheKey, sorted);
+  
+  // Auto-clear cache after expiry
+  setTimeout(() => {
+    questionsCache.delete(cacheKey);
+  }, CACHE_EXPIRY_MS);
+  
+  return sorted;
 };
 
 
