@@ -640,7 +640,17 @@ router.get('/admin/candidates', async (req: Request, res: Response) => {
   if (status || req.query.score) {
     where.assessment = {};
     if (status) where.assessment.status = status as string;
-    if (req.query.score) where.assessment.score = Number(req.query.score);
+    if (req.query.score) {
+      const scoreVal = Number(req.query.score);
+      if (scoreVal === 0) {
+        where.assessment.score = 0;
+      } else {
+        where.assessment.score = {
+          gte: scoreVal - 4,
+          lte: scoreVal
+        };
+      }
+    }
   }
 
   const candidates = await prisma.candidate.findMany({
@@ -694,7 +704,17 @@ router.get('/admin/export', async (req: Request, res: Response) => {
   if (status || req.query.score) {
     where.assessment = {};
     if (status) where.assessment.status = status as string;
-    if (req.query.score) where.assessment.score = Number(req.query.score);
+    if (req.query.score) {
+      const scoreVal = Number(req.query.score);
+      if (scoreVal === 0) {
+        where.assessment.score = 0;
+      } else {
+        where.assessment.score = {
+          gte: scoreVal - 4,
+          lte: scoreVal
+        };
+      }
+    }
   }
 
   const candidates = await prisma.candidate.findMany({

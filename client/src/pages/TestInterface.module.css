@@ -673,3 +673,23 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
 }
+
+@media (max-width: 768px) {
+  .instructionsContainer {
+    padding: 0;
+    align-items: flex-start;
+  }
+  .instructionsCard {
+    padding: 2rem 1.5rem;
+    border-radius: 0;
+    min-height: 100vh;
+    border: none;
+    box-shadow: none;
+    max-width: 100vw;
+    width: 100%;
+    margin: 0;
+  }
+  .instructionsTitle {
+    font-size: 1.75rem;
+  }
+}

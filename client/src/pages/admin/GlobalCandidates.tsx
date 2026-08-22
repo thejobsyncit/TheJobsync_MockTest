@@ -5,6 +5,15 @@ import { Search, Download, Users, CheckCircle, Clock, X, Trash2 } from 'lucide-r
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+const getOptionText = (question: any, optionKey: string) => {
+  if (!question || !optionKey) return '';
+  if (optionKey === 'A') return question.option_a;
+  if (optionKey === 'B') return question.option_b;
+  if (optionKey === 'C') return question.option_c;
+  if (optionKey === 'D') return question.option_d;
+  return '';
+};
+
 export default function GlobalCandidates() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -228,13 +237,13 @@ export default function GlobalCandidates() {
             </select>
             <select value={filters.score} onChange={e => setFilters({...filters, score: e.target.value})}>
               <option value="">All Marks</option>
-              <option value="30">30 Marks</option>
-              <option value="25">25 Marks</option>
-              <option value="20">20 Marks</option>
-              <option value="15">15 Marks</option>
-              <option value="10">10 Marks</option>
-              <option value="5">5 Marks</option>
-              <option value="0">0 Marks</option>
+              <option value="30">30 Marks (26-30)</option>
+              <option value="25">25 Marks (21-25)</option>
+              <option value="20">20 Marks (16-20)</option>
+              <option value="15">15 Marks (11-15)</option>
+              <option value="10">10 Marks (6-10)</option>
+              <option value="5">5 Marks (1-5)</option>
+              <option value="0">0 Marks (0)</option>
             </select>
           </div>
         </div>
@@ -380,8 +389,12 @@ export default function GlobalCandidates() {
                       <div key={a.answer_id} className={`${styles.answerItem} ${a.is_correct ? styles.answerCorrect : (a.selected_answer ? styles.answerWrong : styles.answerUnanswered)}`}>
                         <div className={styles.answerQ}>{i + 1}. {a.question.question_text}</div>
                         <div className={styles.answerDetails}>
-                          <span className={styles.selectedAns}><strong>Selected:</strong> {a.selected_answer ? a.selected_answer : 'None'}</span>
-                          <span className={styles.correctAns}><strong>Correct:</strong> {a.correct_answer}</span>
+                          <span className={styles.selectedAns}>
+                            <strong>Selected:</strong> {a.selected_answer ? `${a.selected_answer} (${getOptionText(a.question, a.selected_answer)})` : 'None'}
+                          </span>
+                          <span className={styles.correctAns}>
+                            <strong>Correct:</strong> {a.correct_answer} ({getOptionText(a.question, a.correct_answer)})
+                          </span>
                           <span className={styles.ansStatus}>{a.is_correct ? '✅ Correct' : (a.selected_answer ? '❌ Wrong' : '⚠️ Unanswered')}</span>
                         </div>
                       </div>
