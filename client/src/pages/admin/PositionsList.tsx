@@ -31,9 +31,7 @@ export default function PositionsList() {
   };
 
   const isSuperAdmin = sessionStorage.getItem('adminAuth') === 'thejobsyncit@gmail.com';
-  const [addEnabled, setAddEnabled] = useState(() => {
-    return localStorage.getItem('addEnabled') !== 'false';
-  });
+  const addEnabled = localStorage.getItem('addEnabled') !== 'false';
 
   useEffect(() => {
     fetchPositions();
