@@ -30,6 +30,11 @@ export default function PositionsList() {
     }
   };
 
+  const isSuperAdmin = sessionStorage.getItem('adminAuth') === 'thejobsyncit@gmail.com';
+  const [addEnabled, setAddEnabled] = useState(() => {
+    return localStorage.getItem('addEnabled') !== 'false';
+  });
+
   useEffect(() => {
     fetchPositions();
   }, []);
@@ -93,9 +98,11 @@ export default function PositionsList() {
           <h1 className={styles.pageTitle}>Positions Management</h1>
           <p className={styles.pageSubtitle}>Add, edit, or remove roles for candidates</p>
         </div>
-        <button className={styles.primaryButton} onClick={openNewModal}>
-          + Add New Position
-        </button>
+        {isSuperAdmin && addEnabled && (
+          <button className={styles.primaryButton} onClick={openNewModal}>
+            + Add New Position
+          </button>
+        )}
       </header>
 
       {error && <div className={styles.errorAlert}>{error}</div>}

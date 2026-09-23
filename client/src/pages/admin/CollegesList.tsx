@@ -44,6 +44,11 @@ export default function CollegesList() {
     }
   };
 
+  const isSuperAdmin = sessionStorage.getItem('adminAuth') === 'thejobsyncit@gmail.com';
+  const [addEnabled, setAddEnabled] = useState(() => {
+    return localStorage.getItem('addEnabled') !== 'false';
+  });
+
   useEffect(() => {
     fetchColleges();
   }, []);
@@ -122,12 +127,14 @@ export default function CollegesList() {
           >
             <Download size={18} /> Export All (Separate Sheets)
           </button>
-          <button 
-            onClick={() => setShowAddModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600 }}
-          >
-            <Plus size={18} /> Add College
-          </button>
+          {isSuperAdmin && addEnabled && (
+            <button 
+              onClick={() => setShowAddModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--primary)', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+            >
+              <Plus size={18} /> Add College
+            </button>
+          )}
         </div>
       </div>
 

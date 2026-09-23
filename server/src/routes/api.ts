@@ -84,6 +84,31 @@ router.post('/settings/test-active', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/settings/add-enabled', async (req: Request, res: Response) => {
+  try {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: 'ADD_ENABLED' } });
+    // Default to true if not set
+    res.json({ add_enabled: setting ? setting.value === 'true' : true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+router.post('/settings/add-enabled', async (req: Request, res: Response) => {
+  try {
+    const { add_enabled } = req.body;
+    await prisma.systemSetting.upsert({
+      where: { key: 'ADD_ENABLED' },
+      update: { value: String(add_enabled) },
+      create: { id: 2, key: 'ADD_ENABLED', value: String(add_enabled) }
+    });
+    res.json({ success: true, add_enabled });
+  } catch (error) {
+    console.error('Error updating ADD_ENABLED:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
 // ===============================
 // COLLEGE ENDPOINTS
 // ===============================
