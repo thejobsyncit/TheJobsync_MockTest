@@ -52,6 +52,8 @@ async function import4SetsExcel() {
         if (currentRole.includes('(')) {
           currentRole = currentRole.split('(')[0].trim();
         }
+        if (currentRole === 'AIML Engineer') currentRole = 'AI/ML Engineer';
+        if (currentRole === 'UIUX Designer') currentRole = 'UI/UX Designer';
         return; // Skip this header row
       }
 

@@ -18,9 +18,18 @@ const fetchPositionQuestions = async (position: string, department: string, setN
     return questionsCache.get(cacheKey)!;
   }
 
+  const positionAliases: Record<string, string[]> = {
+    'AI/ML Engineer': ['AI/ML Engineer', 'AIML Engineer'],
+    'AIML Engineer': ['AIML Engineer', 'AI/ML Engineer'],
+    'UI/UX Designer': ['UI/UX Designer', 'UIUX Designer'],
+    'UIUX Designer': ['UIUX Designer', 'UI/UX Designer'],
+  };
+
+  const allowedPositions = positionAliases[position] || [position];
+
   const selected = await prisma.question.findMany({
     where: { 
-      position: position,
+      position: { in: allowedPositions },
       status: 'ACTIVE',
       type: 'MCQ',
       set_number: setNumber
