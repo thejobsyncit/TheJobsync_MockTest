@@ -27,9 +27,13 @@ async function import4SetsExcel() {
     data: { status: 'INACTIVE' }
   });
 
-  console.log("Reading 4 Sets Excel file...");
+  const fs = await import('fs');
+  const excelFileName = fs.existsSync('JobSync_113_Roles_4_Sets_Hard_Levelfixed.xlsx')
+    ? 'JobSync_113_Roles_4_Sets_Hard_Levelfixed.xlsx'
+    : 'JobSync_113_Roles_4_Sets_Hard_Level.xlsx';
+  console.log(`Reading 4 Sets Excel file (${excelFileName})...`);
   const workbook = new exceljs.Workbook();
-  await workbook.xlsx.readFile('JobSync_113_Roles_4_Sets_Hard_Level.xlsx');
+  await workbook.xlsx.readFile(excelFileName);
   
   let totalImported = 0;
 
