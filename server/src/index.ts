@@ -11,6 +11,10 @@ import apiRoutes from './routes/api';
 app.use(cors());
 app.use(express.json());
 
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', message: 'JobSync API is running' });
+});
+
 app.use('/api', apiRoutes);
 
 if (process.env.NODE_ENV !== 'production') {
